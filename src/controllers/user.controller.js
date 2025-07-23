@@ -230,7 +230,9 @@ const changeCurrentPassword = asyncHandler(async (req, res) => {
 });
 
 const getCurrentUser = asyncHandler(async (req, res) => {
-  return res.status(200).json(200, req.user, "current user fetched .");
+  return res
+    .status(200)
+    .json(new ApiRes(200, req.user, "current user fetched ."));
 });
 
 const updateAccountDetails = asyncHandler(async (req, res) => {
@@ -238,7 +240,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
   if (!(fullname || email)) {
     throw new Apierror(400, "All fields are required");
   }
-  const user = User.findByIdAndUpdate(
+  const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
       $set: {
@@ -248,6 +250,7 @@ const updateAccountDetails = asyncHandler(async (req, res) => {
     },
     { new: true }
   ).select("-password");
+
   return res
     .status(200)
     .json(new ApiRes(200, user, "Account deatils updated successfully "));
@@ -262,6 +265,7 @@ const updteUserAvatar = asyncHandler(async (req, res) => {
   if (!avatar.url) {
     throw new Apierror(400, "Error while uploading avatar.");
   }
+  const existingUser = await User.findById(req.user?._id);
   const user = await User.findByIdAndUpdate(
     req.user?._id,
     {
@@ -271,6 +275,9 @@ const updteUserAvatar = asyncHandler(async (req, res) => {
     },
     { new: true }
   ).select("-password");
+  if (existingUser?.avatarPublicId) {
+    await cloudinary.uploader.destroy(existingUser.avatarPublicId);
+  }
 
   return res
     .status(200)
