@@ -3,6 +3,7 @@ import { Apierror } from "../utils/Apierrors.js";
 import { User } from "../models/user.model.js";
 import { uploadCloudinary } from "../utils/Cloudinary.js";
 import { ApiRes } from "../utils/ApiRes.js";
+import { v2 as cloudinary } from "cloudinary";
 import { ref } from "process";
 import { access } from "fs";
 import jwt from "jsonwebtoken";
@@ -174,7 +175,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incommingRefreshToken =
-    req.cokkies.referenceToken || req.body.refreshToken;
+    req.cokkies.refreshToken || req.body.refreshToken;
   if (!incommingRefreshToken) {
     throw new Apierror(401, "unauthorised request");
   }
@@ -271,6 +272,7 @@ const updteUserAvatar = asyncHandler(async (req, res) => {
     {
       $set: {
         avatar: avatar.url,
+        avatarPublicId: avatar.public_id,
       },
     },
     { new: true }
@@ -308,6 +310,120 @@ const updteUserCoverimage = asyncHandler(async (req, res) => {
     .json(new ApiRes(200, user, "coverimage updated successfully"));
 });
 
+const getUserChannelProfile = asyncHandler(async (req, res) => {
+  const { username } = req.params;
+  if (!username?.trim()) {
+    throw new Apierror(400, "username is missing");
+  }
+  const channel = await User.aggregate([
+    {
+      $match: {
+        username: username?.toLowerCase(),
+      },
+    },
+    {
+      $lookup: {
+        from: "Subscription",
+        localField: "_id",
+        foreignField: "channel",
+        as: "Subscribers",
+      },
+    },
+    {
+      $lookup: {
+        from: "Subscription",
+        localField: "_id",
+        foreignField: "subscriber",
+        as: "SubscribedTo",
+      },
+    },
+    {
+      $addFields: {
+        subscribersCount: {
+          $size: "$subscriber",
+        },
+        channelSubscribedToCount: {
+          $size: "$SubscribedTo",
+        },
+        isSubscribed: {
+          $cond: {
+            if: { $in: [req.user?._id, "$subscribers.subscriber"] },
+            then: true,
+            else: false,
+          },
+        },
+      },
+    },
+    {
+      $project: {
+        fullname: 1,
+        username: 1,
+        subscribersCount: 1,
+        channelSubscribedToCount: 1,
+        isSubscribed: 1,
+        avatar: 1,
+        coverimage: 1,
+        email: 1,
+      },
+    },
+  ]);
+
+  if (!channel?.length) {
+    throw new Apierror(404, "Channel doesnt exist");
+  }
+  return res
+    .status(200)
+    .jasonI(new ApiRes(200, channel[0], "User channel fetched successfully"));
+});
+
+const getWatchHistory = asyncHandler(async (req, res) => {
+  const user = await User.aggregate([
+    {
+      $match: {
+        _id: new mongoose.Types.ObjecId(req.user._id),
+      },
+    },
+    {
+      $lookup: {
+        from: "Video",
+        localField: "watchHistory",
+        foreignField: "_id",
+        as: "watchHistory",
+        pipeline: [
+          {
+            $lookup: {
+              from: "user",
+              localField: "owner",
+              foreignField: "_id",
+              as: "owner",
+              pipeline: [
+                {
+                  $project: {
+                    fullname: 1,
+                    username: 1,
+                    avatar: 1,
+                  },
+                },
+              ],
+            },
+          },
+          {
+            $addFields: {
+              owner: {
+                $first: "$owner",
+              },
+            },
+          },
+        ],
+      },
+    },
+  ]);
+
+  return res
+    .status(200)
+    .json(new ApiRes(200, user[0].watchHistory, "watch history fetched"));
+});
+
 export {
   registerUser,
   loginUser,
@@ -318,4 +434,6 @@ export {
   updateAccountDetails,
   updteUserAvatar,
   updteUserCoverimage,
+  getUserChannelProfile,
+  getWatchHistory,
 };
