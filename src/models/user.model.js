@@ -21,7 +21,6 @@ const userSchema = new Schema(
     fullname: {
       type: String,
       required: true,
-      unique: true,
       trim: true,
       index: true,
     },
@@ -41,6 +40,7 @@ const userSchema = new Schema(
     password: {
       type: String,
       required: true,
+      select: false,
     },
     referenceToken: {
       type: String,
