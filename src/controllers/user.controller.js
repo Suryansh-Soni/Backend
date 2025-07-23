@@ -175,7 +175,7 @@ const logoutUser = asyncHandler(async (req, res) => {
 const refreshAccessToken = asyncHandler(async (req, res) => {
   const incommingRefreshToken =
     req.cokkies.referenceToken || req.body.refreshToken;
-  if (incommingRefreshToken) {
+  if (!incommingRefreshToken) {
     throw new Apierror(401, "unauthorised request");
   }
   try {
