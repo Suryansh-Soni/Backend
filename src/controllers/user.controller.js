@@ -4,7 +4,7 @@ import { User } from "../models/user.model.js";
 import { uploadCloudinary } from "../utils/Cloudinary.js";
 import { ApiRes } from "../utils/ApiRes.js";
 import { v2 as cloudinary } from "cloudinary";
-import { ref } from "process"; // This  import is not used in the code, but it seems to be a mistake.
+import { ref } from "process"; // This import is not used in the code, but it seems to be a mistake.
 import { access } from "fs";
 import jwt from "jsonwebtoken";
 
